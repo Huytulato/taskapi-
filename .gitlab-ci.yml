@@ -1,0 +1,101 @@
+# Sử dụng image Maven với Java 17
+image: maven:3.8-openjdk-17
+
+# Cache maven dependencies giữa các lần chạy
+cache:
+  paths:
+    - .m2/repository
+
+# Định nghĩa các stage trong pipeline
+stages:
+  - validate
+  - test
+  - build
+  - package
+  - deploy
+
+# Biến môi trường maven
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version"
+
+# Validate: Kiểm tra cú pháp code và cấu hình
+validate:
+  stage: validate
+  script:
+    - echo "Validating project..."
+    - mvn $MAVEN_CLI_OPTS validate
+    - mvn $MAVEN_CLI_OPTS compile
+
+# Test: Chạy unit tests
+test:
+  stage: test
+  script:
+    - echo "Running tests..."
+    - mvn $MAVEN_CLI_OPTS test
+  artifacts:
+    paths:
+      - target/surefire-reports/
+    reports:
+      junit: target/surefire-reports/TEST-*.xml
+    expire_in: 1 week
+
+# Build: Đóng gói ứng dụng thành JAR file
+build:
+  stage: build
+  script:
+    - echo "Building application..."
+    - mvn $MAVEN_CLI_OPTS package -DskipTests
+  artifacts:
+    paths:
+      - target/*.jar
+    expire_in: 1 week
+
+# Package: Tạo Docker image (mô phỏng)
+package:
+  stage: package
+  image: docker:20.10.16
+  services:
+    - docker:20.10.16-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  script:
+    - echo "Creating Docker image..."
+    - echo "Would build Docker image here from JAR file"
+  only:
+    - develop
+    - main
+
+# Deploy to DEV - Triển khai tự động lên môi trường development
+deploy_development:
+  stage: deploy
+  script:
+    - echo "Deploying application to DEV environment..."
+    - echo "App version: $CI_COMMIT_SHORT_SHA will be deployed to DEV"
+  environment:
+    name: development
+  only:
+    - develop
+
+# Deploy to STAGING - Triển khai tự động lên môi trường staging
+deploy_staging:
+  stage: deploy
+  script:
+    - echo "Deploying application to STAGING environment..."
+    - echo "App version: $CI_COMMIT_SHORT_SHA will be deployed to STAGING"
+  environment:
+    name: staging
+  only:
+    - main
+
+# Deploy to PRODUCTION - Triển khai thủ công lên môi trường production
+deploy_production:
+  stage: deploy
+  script:
+    - echo "Deploying application to PRODUCTION environment..."
+    - echo "App version: $CI_COMMIT_SHORT_SHA will be deployed to PRODUCTION"
+  environment:
+    name: production
+  when: manual # Cần phê duyệt thủ công
+  only:
+    - main
