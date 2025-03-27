@@ -70,9 +70,10 @@ docker-package:
 # Deploy to DEV - Triển khai tự động lên môi trường development
 deploy_development:
   stage: deploy
-  script:
-    - echo "Deploying application to DEV environment..."
-    - echo "App version: $CI_COMMIT_SHORT_SHA will be deployed to DEV"
+  script: 
+    - |
+      echo "Deploying application to DEV environment..."
+      echo "App version: $CI_COMMIT_SHORT_SHA will be deployed to DEV"
   environment:
     name: development
   only:
